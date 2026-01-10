@@ -28,14 +28,13 @@ public class EmbeddingService {
                     "input", text
             );
 
-            String response = HttpUtils.post(ollamaUrl + "/embed", MAPPER.writeValueAsString(body));
+            String response = HttpUtils.post(ollamaUrl + "/embeddings", MAPPER.writeValueAsString(body));
 
             JsonNode node = MAPPER.readTree(response);
-            if (node.has("embedding")) {
-                return MAPPER.convertValue(node.get("embedding"), new TypeReference<List<Double>>() {});
-            } else {
-                throw new RuntimeException("Ollama embedding failed: " + response);
-            }
+            return MAPPER.convertValue(
+                    node.get("data").get(0).get("embedding"),
+                    new TypeReference<List<Double>>() {}
+            );
 
         } catch (Exception e) {
             throw new RuntimeException("Ollama embedding failed: " + e.getMessage(), e);
