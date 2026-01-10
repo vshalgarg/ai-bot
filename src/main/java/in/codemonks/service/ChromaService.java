@@ -10,56 +10,83 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
 public class ChromaService {
 
+    private static final String COLLECTION_NAME = "pdf_collection";
+    private static final String TENANT = "default_tenant";
+    private static final String DATABASE = "default_database";
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private final HttpClient client = HttpClient.newHttpClient();
 
-    private static final String collectionName = "pdf_collection";
-
+    /**
+     * Stores documents with their embeddings into Chroma collection
+     */
     public void store(List<String> texts, List<List<Double>> embeddings) throws Exception {
+        if (texts.isEmpty() || embeddings.isEmpty() || texts.size() != embeddings.size()) return;
+
+        List<String> ids = IntStream.range(0, texts.size())
+                .mapToObj(i -> "doc-" + i + "-" + System.currentTimeMillis())
+                .collect(Collectors.toList());
+
         Map<String, Object> body = Map.of(
+                "tenant", TENANT,
+                "database", DATABASE,
                 "documents", texts,
                 "embeddings", embeddings,
-                "ids", IntStream.range(0, texts.size())
-                        .mapToObj(i -> UUID.randomUUID().toString()).toList()
+                "ids", ids
         );
 
-        String url = "http://chroma:8000/collections/" + collectionName + "/add";
+        String url = String.format("http://chroma:8000/api/v2/collections/%s/add", COLLECTION_NAME);
+
         post(url, body);
     }
 
-    public List<String> search(List<Double> embedding) throws Exception {
+    /**
+     * Queries Chroma collection using embedding
+     */
+    public List<String> search(List<Double> queryEmbedding, int nResults) throws Exception {
+        if (queryEmbedding == null || queryEmbedding.isEmpty()) return List.of();
+
         Map<String, Object> body = Map.of(
-                "query", List.of(embedding),
-                "n_results", 5
+                "tenant", TENANT,
+                "database", DATABASE,
+                "query_embeddings", List.of(queryEmbedding),
+                "n_results", nResults
         );
 
-        String url = "http://chroma:8000/collections/" + collectionName + "/query";
+        String url = String.format("http://chroma:8000/api/v2/collections/%s/query", COLLECTION_NAME);
         String res = post(url, body);
 
-        JsonNode json = MAPPER.readTree(res);
-        JsonNode docs = json.get("documents");
-        if (docs != null && docs.isArray() && docs.size() > 0) {
-            return docs.get(0).findValuesAsText("");
-        } else {
-            return List.of();
-        }
+        JsonNode root = MAPPER.readTree(res);
+        JsonNode docsNode = root.get("documents");
+        if (docsNode == null || !docsNode.isArray() || docsNode.size() == 0) return List.of();
+
+        JsonNode firstDocArray = docsNode.get(0);
+        return firstDocArray.findValuesAsText(""); // returns list of strings
     }
 
-    private String post(String url, Object body) throws Exception {
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
+    /**
+     * Generic POST helper
+     */
+    private String post(String url, Map<String, Object> body) throws Exception {
+        String json = MAPPER.writeValueAsString(body);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(new URI(url))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
+                .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
-        return HttpClient.newHttpClient()
-                .send(req, HttpResponse.BodyHandlers.ofString())
-                .body();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() >= 300) {
+            throw new RuntimeException("Chroma request failed: " + response.statusCode() + " - " + response.body());
+        }
+
+        return response.body();
     }
 }
-

@@ -13,7 +13,7 @@ public class ChatService {
 
     public String chat(String question) throws Exception {
         List<Double> qEmb = embeddingService.embed(question);
-        List<String> docs = chromaService.search(qEmb);
+        List<String> docs = chromaService.search(qEmb, 2);
 
         String context = String.join("\n", docs);
 
