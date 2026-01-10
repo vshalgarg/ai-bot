@@ -67,7 +67,7 @@ public class VectorService {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .PUT(HttpRequest.BodyPublishers.ofString(body))
                 .header("Content-Type", "application/json")
                 .build();
 
