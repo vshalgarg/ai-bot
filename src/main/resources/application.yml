@@ -1,6 +1,3 @@
-server:
-  port: 3000
-
 ollama:
   base-url: http://ollama:11434
   model: llama3
