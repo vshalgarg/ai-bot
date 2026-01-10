@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Knowledge Bot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<h2>📄 Upload PDF Knowledge</h2>
+
+<input type="file" id="pdfFile" accept="application/pdf"/>
+<button onclick="uploadPdf()">Upload & Train</button>
+
+<p id="uploadStatus"></p>
+
+<hr/>
+
+<h2>💬 Ask the AI</h2>
+
+<textarea id="question" placeholder="Ask something..."></textarea>
+<br/>
+<button onclick="ask()">Ask</button>
+
+<pre id="answer"></pre>
+
+<script src="app.js"></script>
+</body>
+</html>

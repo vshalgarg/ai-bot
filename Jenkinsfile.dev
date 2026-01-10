@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = "ai-bot"
+        IMAGE_NAME = "ai-bot:latest"
+        CONTAINER_NAME = "ai-bot"
+        NETWORK = "ai-net"
+        PORT = "8080"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build JAR') {
+            steps {
+                sh '''
+                  mvn clean package -DskipTests
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                  docker build -t $IMAGE_NAME .
+                '''
+            }
+        }
+
+        stage('Stop Existing Container') {
+            steps {
+                sh '''
+                  if docker ps -a --format '{{.Names}}' | grep -w $CONTAINER_NAME; then
+                    docker rm -f $CONTAINER_NAME
+                  fi
+                '''
+            }
+        }
+
+        stage('Run New Container') {
+            steps {
+                sh '''
+                  docker run -d \
+                    --name $CONTAINER_NAME \
+                    --network $NETWORK \
+                    --restart unless-stopped \
+                    -p $PORT:8080 \
+                    $IMAGE_NAME
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ AI Bot deployed successfully"
+        }
+        failure {
+            echo "❌ Deployment failed"
+        }
+    }
+}
