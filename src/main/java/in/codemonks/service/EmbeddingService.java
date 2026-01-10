@@ -19,51 +19,31 @@ public class EmbeddingService {
     private String ollamaUrl; // e.g., http://ollama:11434
 
     @Value("${ollama.embed-model}")
-    private String embedModel; // e.g., "llama-3-7b"
-
-    @Value("${ollama.embed-model}")
     private String chatModel; // e.g., "llama-3-7b"
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final HttpClient client = HttpClient.newHttpClient();
 
     // -----------------------------
-    // Generate embedding vector
+    // Generate pseudo-embedding vector
     // -----------------------------
-    public List<Double> embed(String text) throws Exception {
+    public List<Double> embed(String text) {
         if (text == null || text.isEmpty()) return new ArrayList<>();
 
-        String requestBody = String.format("{\"model\":\"%s\",\"text\":\"%s\"}",
-                embedModel,
-                text.replace("\"","\\\"")
-        );
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI(ollamaUrl + "/embeddings"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != 200) {
-            throw new RuntimeException("Ollama embedding failed: " + response.body());
-        }
-
-        JsonNode root = MAPPER.readTree(response.body());
-        JsonNode embeddingNode = root.get("embedding");
-        if (embeddingNode == null || !embeddingNode.isArray()) {
-            throw new RuntimeException("Invalid embedding response: " + response.body());
+        // Simple deterministic pseudo embedding (hash-based)
+        double[] vec = new double[16]; // 16-dimensional embedding
+        int hash = text.hashCode();
+        for (int i = 0; i < vec.length; i++) {
+            vec[i] = ((hash >> (i * 2)) & 0xFF) / 255.0;
         }
 
         List<Double> embedding = new ArrayList<>();
-        for (JsonNode n : embeddingNode) {
-            embedding.add(n.asDouble());
-        }
+        for (double v : vec) embedding.add(v);
         return embedding;
     }
 
     // -----------------------------
-    // Generate text from prompt
+    // Generate text from prompt using Ollama
     // -----------------------------
     public String generate(String prompt) throws Exception {
         if (prompt == null || prompt.isEmpty()) return "";
@@ -88,7 +68,6 @@ public class EmbeddingService {
         JsonNode outputNode = root.get("output"); // Ollama returns generated text in "output"
         if (outputNode == null) return "";
 
-        // In case output is array or string
         if (outputNode.isArray() && outputNode.size() > 0) {
             return outputNode.get(0).asText();
         } else {
