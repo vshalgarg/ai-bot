@@ -9,9 +9,9 @@ import java.io.File;
 @Service
 public class PdfService {
 
-    public String extractText(File file) throws Exception {
-        try (PDDocument doc = PDDocument.load(file)) {
-            return new PDFTextStripper().getText(doc);
+    public String extractText(File pdfFile) throws Exception {
+        try (PDDocument document = PDDocument.load(pdfFile)) {
+            return new PDFTextStripper().getText(document);
         }
     }
 }

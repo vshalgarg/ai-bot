@@ -1,14 +1,8 @@
 package in.codemonks.controller;
 
-import in.codemonks.service.ChromaService;
-import in.codemonks.service.ChunkService;
-import in.codemonks.service.EmbeddingService;
-import in.codemonks.service.PdfService;
+import in.codemonks.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -19,39 +13,31 @@ import java.util.List;
 @RequestMapping("/api")
 public class IngestController {
 
-    @Autowired
-    PdfService pdfService;
-    @Autowired
-    ChunkService chunkService;
-    @Autowired
-    EmbeddingService embeddingService;
-    @Autowired
-    ChromaService chromaService;
+    @Autowired private PdfService pdfService;
+    @Autowired private ChunkService chunkService;
+    @Autowired private EmbeddingService embeddingService;
+    @Autowired private ChromaService chromaService;
 
     @PostMapping("/ingest")
     public String ingest(@RequestParam MultipartFile file) throws Exception {
-        // 1. Create temporary PDF file
+        // 1️⃣ Create collection if not exists
+        chromaService.createCollection();
+
+        // 2️⃣ Extract text
         File temp = File.createTempFile("upload", ".pdf");
         file.transferTo(temp);
-        temp.deleteOnExit();
-
-        // 2. Extract text
         String text = pdfService.extractText(temp);
 
-        // 3. Split text into chunks
+        // 3️⃣ Chunk
         List<String> chunks = chunkService.chunk(text);
 
-        // 4. Generate embeddings
+        // 4️⃣ Embed
         List<List<Double>> embeddings = new ArrayList<>();
-        for (String c : chunks) {
-            List<Double> emb = embeddingService.embed(c);
-            if (emb != null && !emb.isEmpty()) embeddings.add(emb);
-        }
+        for (String c : chunks) embeddings.add(embeddingService.embed(c));
 
-        // 5. Store in Chroma collection
+        // 5️⃣ Store in Chroma
         chromaService.store(chunks, embeddings);
 
-        return "PDF ingested successfully";
+        return "PDF ingested successfully!";
     }
-
 }

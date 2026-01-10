@@ -8,11 +8,12 @@ import java.util.List;
 @Service
 public class ChunkService {
 
+    // Split text into chunks (simple fixed-size)
     public List<String> chunk(String text) {
         List<String> chunks = new ArrayList<>();
-        int size = 800;
-        for (int i = 0; i < text.length(); i += size) {
-            chunks.add(text.substring(i, Math.min(text.length(), i + size)));
+        int chunkSize = 500;
+        for (int i = 0; i < text.length(); i += chunkSize) {
+            chunks.add(text.substring(i, Math.min(i + chunkSize, text.length())));
         }
         return chunks;
     }

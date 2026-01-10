@@ -16,62 +16,46 @@ import java.util.List;
 public class EmbeddingService {
 
     @Value("${ollama.base-url}")
-    private String ollamaUrl; // e.g., http://ollama:11434
+    private String ollamaUrl; // http://ollama:11434
 
-    @Value("${ollama.embed-model}")
-    private String chatModel; // e.g., "llama-3-7b"
+    @Value("${ollama.chat-model}")
+    private String chatModel; // llama-3-7b
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final HttpClient client = HttpClient.newHttpClient();
 
     // -----------------------------
-    // Generate pseudo-embedding vector
+    // Pseudo embedding for Chroma
     // -----------------------------
     public List<Double> embed(String text) {
-        if (text == null || text.isEmpty()) return new ArrayList<>();
-
-        // Simple deterministic pseudo embedding (hash-based)
-        double[] vec = new double[16]; // 16-dimensional embedding
+        double[] vec = new double[16];
         int hash = text.hashCode();
-        for (int i = 0; i < vec.length; i++) {
-            vec[i] = ((hash >> (i * 2)) & 0xFF) / 255.0;
-        }
-
+        for (int i = 0; i < vec.length; i++) vec[i] = ((hash >> (i * 2)) & 0xFF) / 255.0;
         List<Double> embedding = new ArrayList<>();
         for (double v : vec) embedding.add(v);
         return embedding;
     }
 
     // -----------------------------
-    // Generate text from prompt using Ollama
+    // Generate text via Ollama
     // -----------------------------
     public String generate(String prompt) throws Exception {
-        if (prompt == null || prompt.isEmpty()) return "";
-
-        String requestBody = String.format("{\"model\":\"%s\",\"prompt\":\"%s\"}",
-                chatModel,
-                prompt.replace("\"","\\\"")
-        );
+        String body = String.format("{\"model\":\"%s\",\"prompt\":\"%s\"}", chatModel, prompt.replace("\"","\\\""));
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(new URI(ollamaUrl + "/generate"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != 200) {
-            throw new RuntimeException("Ollama generate failed: " + response.body());
-        }
+
+        if (response.statusCode() != 200) throw new RuntimeException("Ollama generate failed: " + response.body());
 
         JsonNode root = MAPPER.readTree(response.body());
-        JsonNode outputNode = root.get("output"); // Ollama returns generated text in "output"
+        JsonNode outputNode = root.get("output");
         if (outputNode == null) return "";
-
-        if (outputNode.isArray() && outputNode.size() > 0) {
-            return outputNode.get(0).asText();
-        } else {
-            return outputNode.asText();
-        }
+        if (outputNode.isArray() && outputNode.size() > 0) return outputNode.get(0).asText();
+        return outputNode.asText();
     }
 }
