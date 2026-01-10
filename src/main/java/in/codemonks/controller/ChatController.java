@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/chat")
 public class ChatController {
 
     private final ChatService chatService;
@@ -15,8 +15,8 @@ public class ChatController {
         this.chatService = chatService;
     }
 
-    @PostMapping("/chat")
-    public List<String> chat(@RequestParam String message) throws Exception {
-        return chatService.chat(message);
+    @GetMapping
+    public List<String> chat(@RequestParam String query) {
+        return chatService.query(query, 3); // top 3 results
     }
 }

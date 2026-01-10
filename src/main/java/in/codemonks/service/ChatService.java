@@ -15,8 +15,18 @@ public class ChatService {
         this.embeddingService = embeddingService;
     }
 
-    public List<String> chat(String message) throws Exception {
-        List<Double> embedding = embeddingService.embed(message);
-        return chromaService.query(embedding, 3); // return top 3 results
+    /**
+     * Generate a response from Chroma for a user query.
+     *
+     * @param query The user query string.
+     * @param topK  Number of top results to return.
+     * @return List of matching documents.
+     */
+    public List<String> query(String query, int topK) {
+        // Step 1: Get embedding for the query
+        List<Double> queryEmbedding = embeddingService.embed(query);
+
+        // Step 2: Query Chroma collection
+        return chromaService.query(queryEmbedding, topK);
     }
 }
