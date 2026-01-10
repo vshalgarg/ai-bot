@@ -1,0 +1,16 @@
+server:
+  port: 3000
+
+ollama:
+  base-url: http://ollama:11434
+  model: llama3
+  embed-model: nomic-embed-text
+
+chroma:
+  base-url: http://chroma:5000
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
