@@ -87,6 +87,7 @@ public class VectorService {
         Map<String, Object> payload = new HashMap<>();
         payload.put("vector", queryVector);
         payload.put("top", nResults);
+        payload.put("with_payload", true);
 
         // Optional: filter
         Map<String, Object> filter = new HashMap<>();
