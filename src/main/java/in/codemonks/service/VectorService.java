@@ -41,12 +41,14 @@ public class VectorService {
         for (int i = 0; i < documents.size(); i++) {
             String doc = documents.get(i);
             List<Double> vector = embeddings.get(i);
+
             String id = ids.get(i);
 
             if (doc == null || vector == null || id == null) {
                 continue; // skip nulls
             }
-
+            System.out.println("vector size is:  " + vector.size());
+            System.out.println("id is: " + id + ", doc is: " + doc);
             Map<String, Object> payload = new HashMap<>();
             payload.put("text", doc);
 
