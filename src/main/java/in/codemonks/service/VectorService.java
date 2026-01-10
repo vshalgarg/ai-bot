@@ -18,12 +18,12 @@ public class VectorService {
     private static final HttpClient client = HttpClient.newHttpClient();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static final String COLLECTION = "pdf_collection1";
+    private static final String COLLECTION = "pdf_collection3";
 
     // create collection if not exists
     public void createCollection() throws Exception {
         String url = QDRANT_URL + "/collections/" + COLLECTION;
-        String body = "{ \"vector_size\": 4096, \"distance\": \"Cosine\" }"; // adjust vector_size to your embedding size
+        String body = "{\"vectors\":{ \"size\": 4096, \"distance\": \"Cosine\"} }"; // adjust vector_size to your embedding size
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .PUT(HttpRequest.BodyPublishers.ofString(body))
