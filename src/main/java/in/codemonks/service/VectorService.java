@@ -1,5 +1,6 @@
 package in.codemonks.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
@@ -17,12 +18,12 @@ public class VectorService {
     private static final HttpClient client = HttpClient.newHttpClient();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static final String COLLECTION = "pdf_collection";
+    private static final String COLLECTION = "pdf_collection1";
 
     // create collection if not exists
     public void createCollection() throws Exception {
         String url = QDRANT_URL + "/collections/" + COLLECTION;
-        String body = "{ \"vector_size\": 384, \"distance\": \"Cosine\" }"; // adjust vector_size to your embedding size
+        String body = "{ \"vector_size\": 4096, \"distance\": \"Cosine\" }"; // adjust vector_size to your embedding size
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .PUT(HttpRequest.BodyPublishers.ofString(body))
@@ -68,15 +69,30 @@ public class VectorService {
                 .header("Content-Type", "application/json")
                 .build();
 
-        client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println("Qdrant store response: " + response.body());
     }
 
 
     // query embeddings
-    public List<String> query(List<Double> queryVector, int n) throws Exception {
-        String url = QDRANT_URL + "/collections/" + COLLECTION + "/points/search?limit=" + n;
+    public List<String> query(List<Double> queryVector, int nResults) throws Exception {
+        if (queryVector == null || queryVector.isEmpty()) {
+            throw new IllegalArgumentException("queryVector is null or empty");
+        }
 
-        Map<String, Object> payload = Map.of("vector", queryVector);
+        String url = QDRANT_URL + "/collections/" + COLLECTION + "/points/search";
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("vector", queryVector);
+        payload.put("top", nResults);
+
+        // Optional: filter
+        Map<String, Object> filter = new HashMap<>();
+        // populate filter if needed, skip if null
+        if (!filter.isEmpty()) {
+            payload.put("filter", filter);
+        }
+
         String body = MAPPER.writeValueAsString(payload);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -86,12 +102,17 @@ public class VectorService {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        var json = MAPPER.readTree(response.body());
-        var results = new java.util.ArrayList<String>();
-        for (var r : json.get("result")) {
-            results.add(r.get("payload").get("text").asText());
+
+        // parse response
+        JsonNode root = MAPPER.readTree(response.body());
+        List<String> results = new ArrayList<>();
+        if (root.has("result")) {
+            for (JsonNode point : root.get("result")) {
+                results.add(point.get("payload").get("text").asText());
+            }
         }
         return results;
     }
+
 }
 

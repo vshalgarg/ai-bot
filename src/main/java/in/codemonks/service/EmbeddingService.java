@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-
 @Service
 public class EmbeddingService {
 
@@ -21,19 +20,22 @@ public class EmbeddingService {
     private String embedModel;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
     public List<Double> embed(String text) {
         try {
             Map<String, Object> body = Map.of(
                     "model", embedModel,
-                    "text", text
+                    "input", List.of(text)
             );
 
             String res = HttpUtils.postJson(ollamaUrl + "/v1/embeddings", MAPPER.writeValueAsString(body));
             JsonNode node = MAPPER.readTree(res);
-            return MAPPER.convertValue(node.get("data"), MAPPER.getTypeFactory().constructCollectionType(List.class, Double.class));
+            return MAPPER.convertValue(
+                    node.get("data").get(0).get("embedding"),
+                    MAPPER.getTypeFactory().constructCollectionType(List.class, Double.class)
+            );
         } catch (Exception e) {
             throw new RuntimeException("Ollama embedding failed: " + e.getMessage(), e);
         }
     }
-
 }
