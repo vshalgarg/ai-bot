@@ -4,7 +4,7 @@ ollama:
   embed-model: nomic-embed-text
 
 chroma:
-  base-url: http://chroma:5000
+  base-url: http://chroma:8000
 
 spring:
   servlet:

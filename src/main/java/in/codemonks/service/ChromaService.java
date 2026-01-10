@@ -25,12 +25,12 @@ public class ChromaService {
                         .mapToObj(i -> UUID.randomUUID().toString()).toList()
         );
 
-        post("http://chroma:5000/add", body);
+        post("http://chroma:8000/add", body);
     }
 
     public List<String> search(List<Double> embedding) throws Exception {
         Map<String, Object> body = Map.of("embedding", embedding);
-        String res = post("http://chroma:5000/query", body);
+        String res = post("http://chroma:8000/query", body);
 
         return MAPPER.readTree(res)
                 .get("documents").get(0)
