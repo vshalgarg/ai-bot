@@ -15,64 +15,48 @@ import java.util.stream.IntStream;
 @Service
 public class ChromaService {
 
-    private static final String TENANT = "default_tenant";
-    private static final String DATABASE = "default_database";
-    private static final String COLLECTION = "pdf_collection";
+    private static final String BASE_URL = "http://localhost:8000"; // classic Chroma
+    private static final String COLLECTION_NAME = "pdf_collection";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final HttpClient client = HttpClient.newHttpClient();
 
-    // Create collection (idempotent)
-    public void createCollection() throws Exception {
-        Map<String, String> body = Map.of(
-                "tenant", TENANT,
-                "database", DATABASE,
-                "name", COLLECTION
-        );
-        post("http://chroma:8000/api/v2/collections/create", body);
-    }
-
-    // Store texts + embeddings
+    // Store chunks + embeddings
     public void store(List<String> texts, List<List<Double>> embeddings) throws Exception {
         Map<String, Object> body = Map.of(
-                "tenant", TENANT,
-                "database", DATABASE,
                 "documents", texts,
                 "embeddings", embeddings,
                 "ids", IntStream.range(0, texts.size())
                         .mapToObj(i -> UUID.randomUUID().toString()).toList()
         );
 
-        post("http://chroma:8000/api/v2/collections/" + COLLECTION + "/add", body);
+        post(BASE_URL + "/collections/" + COLLECTION_NAME + "/add", body);
     }
 
-    // Query by embedding
-    public List<String> query(List<Double> queryEmbedding, int nResults) throws Exception {
-        Map<String, Object> body = Map.of(
-                "tenant", TENANT,
-                "database", DATABASE,
-                "query_embeddings", List.of(queryEmbedding),
-                "n_results", nResults
-        );
+    // Search by embedding
+    public List<String> search(List<Double> embedding) throws Exception {
+        Map<String, Object> body = Map.of("embedding", embedding);
+        String res = post(BASE_URL + "/collections/" + COLLECTION_NAME + "/query", body);
 
-        String res = post("http://chroma:8000/api/v2/collections/" + COLLECTION + "/query", body);
-        Map<?, ?> map = MAPPER.readValue(res, Map.class);
-        // extract documents
-        List<?> docs = (List<?>) ((List<?>) map.get("documents")).get(0);
-        return docs.stream().map(Object::toString).toList();
+        return MAPPER.readTree(res)
+                .get("documents").get(0)
+                .findValuesAsText("");
     }
 
-    // Generic POST helper
     private String post(String url, Object body) throws Exception {
         String json = MAPPER.writeValueAsString(body);
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI(url))
+                .uri(URI.create(url))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() >= 400) throw new RuntimeException("Chroma request failed: " + response.statusCode() + " - " + response.body());
+
+        if (response.statusCode() >= 400) {
+            throw new RuntimeException("Chroma request failed: " + response.statusCode() + " - " + response.body());
+        }
+
         return response.body();
     }
 }

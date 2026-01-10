@@ -9,53 +9,55 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class EmbeddingService {
 
     @Value("${ollama.base-url}")
-    private String ollamaUrl; // http://ollama:11434
+    private String ollamaUrl;
 
-    @Value("${ollama.chat-model}")
-    private String chatModel; // llama-3-7b
+    @Value("${ollama.embed-model}")
+    private String embedModel;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final HttpClient client = HttpClient.newHttpClient();
 
-    // -----------------------------
-    // Pseudo embedding for Chroma
-    // -----------------------------
+    // The core embedding method
     public List<Double> embed(String text) {
-        double[] vec = new double[16];
-        int hash = text.hashCode();
-        for (int i = 0; i < vec.length; i++) vec[i] = ((hash >> (i * 2)) & 0xFF) / 255.0;
-        List<Double> embedding = new ArrayList<>();
-        for (double v : vec) embedding.add(v);
-        return embedding;
+        try {
+            String body = String.format("{\"model\":\"%s\", \"text\":\"%s\"}", embedModel, text);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(ollamaUrl + "/embeddings"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("Ollama embedding failed: " + response.body());
+            }
+
+            JsonNode json = MAPPER.readTree(response.body());
+            JsonNode embeddingNode = json.get("embedding");
+            if (embeddingNode == null || !embeddingNode.isArray()) {
+                throw new RuntimeException("Invalid embedding response from Ollama");
+            }
+
+            return MAPPER.convertValue(
+                    embeddingNode,
+                    MAPPER.getTypeFactory().constructCollectionType(List.class, Double.class)
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException("Ollama embedding failed: " + e.getMessage(), e);
+        }
     }
 
-    // -----------------------------
-    // Generate text via Ollama
-    // -----------------------------
-    public String generate(String prompt) throws Exception {
-        String body = String.format("{\"model\":\"%s\",\"prompt\":\"%s\"}", chatModel, prompt.replace("\"","\\\""));
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI(ollamaUrl + "/generate"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() != 200) throw new RuntimeException("Ollama generate failed: " + response.body());
-
-        JsonNode root = MAPPER.readTree(response.body());
-        JsonNode outputNode = root.get("output");
-        if (outputNode == null) return "";
-        if (outputNode.isArray() && outputNode.size() > 0) return outputNode.get(0).asText();
-        return outputNode.asText();
+    // Legacy method to match old code
+    public List<Double> generate(String text) {
+        return embed(text);
     }
 }
