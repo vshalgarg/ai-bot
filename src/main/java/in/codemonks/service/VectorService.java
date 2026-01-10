@@ -104,7 +104,7 @@ public class VectorService {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
+        System.out.println("Qdrant query response: " + response.body());
         // parse response
         JsonNode root = MAPPER.readTree(response.body());
         List<String> results = new ArrayList<>();
