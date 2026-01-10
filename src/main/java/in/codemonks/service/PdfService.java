@@ -1,18 +1,20 @@
 package in.codemonks.service;
 
-import org.springframework.stereotype.Service;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 
 @Service
 public class PdfService {
 
-    public String extractText(File file) throws Exception {
-        try (PDDocument document = PDDocument.load(file)) {
+    public static String extractText(File pdfFile) {
+        try (PDDocument document = PDDocument.load(pdfFile)) {
             PDFTextStripper stripper = new PDFTextStripper();
             return stripper.getText(document);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to extract text from PDF", e);
         }
     }
 }

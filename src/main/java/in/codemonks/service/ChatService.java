@@ -15,8 +15,8 @@ public class ChatService {
         this.embeddingService = embeddingService;
     }
 
-    public List<String> chat(String query) throws Exception {
-        List<Double> embedding = embeddingService.embed(query);
-        return chromaService.search(embedding);
+    public List<String> chat(String message) throws Exception {
+        List<Double> embedding = embeddingService.embed(message);
+        return chromaService.query(embedding, 3); // return top 3 results
     }
 }

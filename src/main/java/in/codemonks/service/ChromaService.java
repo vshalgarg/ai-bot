@@ -1,62 +1,70 @@
 package in.codemonks.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import in.codemonks.util.HttpUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.stream.IntStream;
 
 @Service
 public class ChromaService {
 
-    private static final String BASE_URL = "http://localhost:8000"; // classic Chroma
-    private static final String COLLECTION_NAME = "pdf_collection";
+    @Value("${chroma.base-url}")
+    private String baseUrl;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-    private final HttpClient client = HttpClient.newHttpClient();
+    @Value("${chroma.tenant}")
+    private String tenant;
 
-    // Store chunks + embeddings
-    public void store(List<String> texts, List<List<Double>> embeddings) throws Exception {
+    @Value("${chroma.database}")
+    private String database;
+
+    @Value("${chroma.collection}")
+    private String collection;
+
+    private final ObjectMapper MAPPER = new ObjectMapper();
+
+    // Create collection (run once)
+    public void createCollection() throws Exception {
         Map<String, Object> body = Map.of(
-                "documents", texts,
-                "embeddings", embeddings,
-                "ids", IntStream.range(0, texts.size())
-                        .mapToObj(i -> UUID.randomUUID().toString()).toList()
+                "tenant", tenant,
+                "database", database,
+                "name", collection
         );
-
-        post(BASE_URL + "/collections/" + COLLECTION_NAME + "/add", body);
+        post("/api/v2/collections/create", body);
     }
 
-    // Search by embedding
-    public List<String> search(List<Double> embedding) throws Exception {
-        Map<String, Object> body = Map.of("embedding", embedding);
-        String res = post(BASE_URL + "/collections/" + COLLECTION_NAME + "/query", body);
-
-        return MAPPER.readTree(res)
-                .get("documents").get(0)
-                .findValuesAsText("");
+    // Store documents + embeddings
+    public void store(List<String> docs, List<List<Double>> embeddings, List<String> ids) throws Exception {
+        Map<String, Object> body = Map.of(
+                "tenant", tenant,
+                "database", database,
+                "documents", docs,
+                "embeddings", embeddings,
+                "ids", ids
+        );
+        post("/api/v2/collections/" + collection + "/add", body);
     }
 
-    private String post(String url, Object body) throws Exception {
-        String json = MAPPER.writeValueAsString(body);
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() >= 400) {
-            throw new RuntimeException("Chroma request failed: " + response.statusCode() + " - " + response.body());
+    // Query embeddings
+    public List<String> query(List<Double> embedding, int nResults) throws Exception {
+        Map<String, Object> body = Map.of(
+                "tenant", tenant,
+                "database", database,
+                "query_embeddings", List.of(embedding),
+                "n_results", nResults
+        );
+        String res = post("/api/v2/collections/" + collection + "/query", body);
+        JsonNode node = MAPPER.readTree(res);
+        if (node.has("results") && node.get("results").isArray() && node.get("results").size() > 0) {
+            return MAPPER.convertValue(node.get("results").get(0).get("documents"), List.class);
         }
+        return List.of();
+    }
 
-        return response.body();
+    private String post(String endpoint, Map<String, Object> body) throws Exception {
+        return HttpUtils.post(baseUrl + endpoint, MAPPER.writeValueAsString(body));
     }
 }

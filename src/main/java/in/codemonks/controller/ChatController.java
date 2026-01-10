@@ -16,8 +16,7 @@ public class ChatController {
     }
 
     @PostMapping("/chat")
-    public List<String> chat(@RequestParam String query) throws Exception {
-        // Returns top matching documents from Chroma for the query
-        return chatService.chat(query);
+    public List<String> chat(@RequestParam String message) throws Exception {
+        return chatService.chat(message);
     }
 }
