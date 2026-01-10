@@ -1,5 +1,6 @@
 package in.codemonks.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,8 @@ public class ChromaService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    private static final String collectionName = "pdf_collection";
+
     public void store(List<String> texts, List<List<Double>> embeddings) throws Exception {
         Map<String, Object> body = Map.of(
                 "documents", texts,
@@ -25,16 +28,26 @@ public class ChromaService {
                         .mapToObj(i -> UUID.randomUUID().toString()).toList()
         );
 
-        post("http://chroma:8000/add", body);
+        String url = "http://chroma:8000/collections/" + collectionName + "/add";
+        post(url, body);
     }
 
     public List<String> search(List<Double> embedding) throws Exception {
-        Map<String, Object> body = Map.of("embedding", embedding);
-        String res = post("http://chroma:8000/query", body);
+        Map<String, Object> body = Map.of(
+                "query", List.of(embedding),
+                "n_results", 5
+        );
 
-        return MAPPER.readTree(res)
-                .get("documents").get(0)
-                .findValuesAsText("");
+        String url = "http://chroma:8000/collections/" + collectionName + "/query";
+        String res = post(url, body);
+
+        JsonNode json = MAPPER.readTree(res);
+        JsonNode docs = json.get("documents");
+        if (docs != null && docs.isArray() && docs.size() > 0) {
+            return docs.get(0).findValuesAsText("");
+        } else {
+            return List.of();
+        }
     }
 
     private String post(String url, Object body) throws Exception {
