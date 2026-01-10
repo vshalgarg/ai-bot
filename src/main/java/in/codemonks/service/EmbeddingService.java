@@ -21,7 +21,7 @@ public class EmbeddingService {
     @Value("${ollama.embed-model}")
     private String embedModel; // e.g., "llama-3-7b"
 
-    @Value("${ollama.chat-model}")
+    @Value("${ollama.embed-model}")
     private String chatModel; // e.g., "llama-3-7b"
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
