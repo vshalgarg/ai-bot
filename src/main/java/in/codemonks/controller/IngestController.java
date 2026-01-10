@@ -42,7 +42,9 @@ public class IngestController {
             embeddings.add(embeddingService.embed(c));
             ids.add(UUID.randomUUID().toString());
         }
-
+        if (chunks.isEmpty()) {
+            throw new RuntimeException("No chunks extracted from PDF");
+        }
         vectorService.store(chunks, embeddings, ids);
         return "PDF ingested successfully";
     }

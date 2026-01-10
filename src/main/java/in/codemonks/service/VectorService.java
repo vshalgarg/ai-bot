@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 
 import java.net.http.*;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,21 +33,33 @@ public class VectorService {
         // Qdrant returns 200 if exists, 201 if created
     }
 
-    // store embeddings
     public void store(List<String> documents, List<List<Double>> embeddings, List<String> ids) throws Exception {
         String url = QDRANT_URL + "/collections/" + COLLECTION + "/points?wait=true";
 
-        // construct payload
-        var points = new java.util.ArrayList<Map<String, Object>>();
+        List<Map<String, Object>> points = new ArrayList<>();
         for (int i = 0; i < documents.size(); i++) {
-            points.add(Map.of(
-                    "id", ids.get(i),
-                    "vector", embeddings.get(i),
-                    "payload", Map.of("text", documents.get(i))
-            ));
+            String doc = documents.get(i);
+            List<Double> vector = embeddings.get(i);
+            String id = ids.get(i);
+
+            if (doc == null || vector == null || id == null) {
+                continue; // skip nulls
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("text", doc);
+
+            Map<String, Object> point = new HashMap<>();
+            point.put("id", id);
+            point.put("vector", vector);
+            point.put("payload", payload);
+
+            points.add(point);
         }
 
-        Map<String, Object> payload = Map.of("points", points);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("points", points);
+
         String body = MAPPER.writeValueAsString(payload);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -56,6 +70,7 @@ public class VectorService {
 
         client.send(request, HttpResponse.BodyHandlers.ofString());
     }
+
 
     // query embeddings
     public List<String> query(List<Double> queryVector, int n) throws Exception {
