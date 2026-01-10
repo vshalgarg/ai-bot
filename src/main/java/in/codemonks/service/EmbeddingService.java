@@ -1,11 +1,15 @@
 package in.codemonks.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import in.codemonks.util.HttpUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+
 
 @Service
 public class EmbeddingService {
@@ -16,6 +20,7 @@ public class EmbeddingService {
     @Value("${ollama.embed-model}")
     private String embedModel;
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     public List<Double> embed(String text) {
         try {
             Map<String, Object> body = Map.of(
@@ -23,9 +28,9 @@ public class EmbeddingService {
                     "text", text
             );
 
-            Map<?, ?> res = HttpUtils.postJson(ollamaUrl + "/embed", body);
-            // Response format: {"embedding": [0.1, 0.2, ...]}
-            return (List<Double>) res.get("embedding");
+            String res = HttpUtils.postJson(ollamaUrl + "/v1/embeddings", MAPPER.writeValueAsString(body));
+            JsonNode node = MAPPER.readTree(res);
+            return MAPPER.convertValue(node.get("data"), MAPPER.getTypeFactory().constructCollectionType(List.class, Double.class));
         } catch (Exception e) {
             throw new RuntimeException("Ollama embedding failed: " + e.getMessage(), e);
         }

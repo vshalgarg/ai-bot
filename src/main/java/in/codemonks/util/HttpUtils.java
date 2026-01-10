@@ -1,44 +1,31 @@
 package in.codemonks.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-
-import java.io.OutputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 public class HttpUtils {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
-    public static void post(String urlStr, Map<String, Object> body) throws Exception {
+    public static String postJson(String urlStr, String json) throws IOException {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
-        conn.setRequestProperty(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+        conn.setRequestProperty("Content-Type", "application/json");
 
         try (OutputStream os = conn.getOutputStream()) {
-            os.write(MAPPER.writeValueAsBytes(body));
+            os.write(json.getBytes(StandardCharsets.UTF_8));
         }
 
         int code = conn.getResponseCode();
-        if (code >= 400) throw new RuntimeException("HTTP POST failed with code " + code);
-    }
+        InputStream is = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
 
-    public static Map<?, ?> postJson(String urlStr, Map<String, Object> body) throws Exception {
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setRequestProperty(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(MAPPER.writeValueAsBytes(body));
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            return sb.toString();
         }
-
-        return MAPPER.readValue(conn.getInputStream(), Map.class);
     }
 }

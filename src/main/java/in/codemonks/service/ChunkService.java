@@ -12,8 +12,9 @@ public class ChunkService {
 
     public List<String> chunk(String text) {
         List<String> chunks = new ArrayList<>();
-        for (int i = 0; i < text.length(); i += CHUNK_SIZE) {
-            chunks.add(text.substring(i, Math.min(text.length(), i + CHUNK_SIZE)));
+        int size = 200;
+        for (int i = 0; i < text.length(); i += size) {
+            chunks.add(text.substring(i, Math.min(i + size, text.length())));
         }
         return chunks;
     }

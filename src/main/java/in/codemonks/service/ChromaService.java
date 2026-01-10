@@ -1,5 +1,7 @@
 package in.codemonks.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import in.codemonks.util.HttpUtils;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,7 @@ public class ChromaService {
 
     private static final String COLLECTION = "pdf_collection";
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     public void store(List<String> documents, List<List<Double>> embeddings, List<String> ids) {
         try {
             Map<String, Object> body = Map.of(
@@ -20,7 +23,7 @@ public class ChromaService {
                     "embeddings", embeddings,
                     "ids", ids
             );
-            HttpUtils.post(CHROMA_HOST + "/collection/" + COLLECTION + "/add", body);
+            HttpUtils.postJson(CHROMA_HOST + "/collections/" + COLLECTION + "/add", MAPPER.writeValueAsString(body));
         } catch (Exception e) {
             throw new RuntimeException("Chroma request failed: " + e.getMessage(), e);
         }
@@ -33,11 +36,10 @@ public class ChromaService {
                     "n_results", nResults
             );
 
-            Map<?, ?> res = HttpUtils.postJson(CHROMA_HOST + "/collection/" + COLLECTION + "/query", body);
+            String res = HttpUtils.postJson(CHROMA_HOST + "/collections/" + COLLECTION + "/query", MAPPER.writeValueAsString(body));
 
-            // Chroma v0 returns { "ids": [...], "documents": [...], "distances": [...] }
-            List<String> documents = (List<String>) ((List<?>) res.get("documents")).get(0);
-            return documents;
+            JsonNode node = MAPPER.readTree(res);
+            return MAPPER.convertValue(node.get("documents").get(0), MAPPER.getTypeFactory().constructCollectionType(List.class, String.class));
         } catch (Exception e) {
             throw new RuntimeException("Chroma query failed: " + e.getMessage(), e);
         }
