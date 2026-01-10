@@ -16,7 +16,7 @@ public class ChatController {
     }
 
     @GetMapping
-    public List<String> chat(@RequestParam String query) {
+    public List<String> chat(@RequestParam String query) throws Exception {
         return chatService.query(query, 3); // top 3 results
     }
 }

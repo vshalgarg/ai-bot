@@ -31,10 +31,9 @@ async function ask() {
 
   answer.innerText = "⏳ Thinking...";
 
-  const res = await fetch("/api/chat", {
-    method: "POST",
+  const res = await fetch("/api/chat?query="+q, {
+    method: "GET",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ query: q })
   });
 
   answer.innerText = await res.text();

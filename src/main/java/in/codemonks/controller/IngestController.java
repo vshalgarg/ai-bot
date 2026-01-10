@@ -16,18 +16,20 @@ public class IngestController {
     private final PdfService pdfService;
     private final ChunkService chunkService;
     private final EmbeddingService embeddingService;
-    private final ChromaService chromaService;
+    private final VectorService vectorService;
 
     public IngestController(PdfService pdfService, ChunkService chunkService,
-                            EmbeddingService embeddingService, ChromaService chromaService) {
+                            EmbeddingService embeddingService, VectorService vectorService) {
         this.pdfService = pdfService;
         this.chunkService = chunkService;
         this.embeddingService = embeddingService;
-        this.chromaService = chromaService;
+        this.vectorService = vectorService;
     }
 
     @PostMapping("/ingest")
     public String ingest(@RequestParam MultipartFile file) throws Exception {
+        vectorService.createCollection(); // ensure collection exists
+
         File temp = File.createTempFile("upload", ".pdf");
         file.transferTo(temp);
 
@@ -36,14 +38,12 @@ public class IngestController {
 
         List<List<Double>> embeddings = new ArrayList<>();
         List<String> ids = new ArrayList<>();
-
-        for (String chunk : chunks) {
-            embeddings.add(embeddingService.embed(chunk));
+        for (String c : chunks) {
+            embeddings.add(embeddingService.embed(c));
             ids.add(UUID.randomUUID().toString());
         }
 
-        chromaService.store(chunks, embeddings, ids);
-
+        vectorService.store(chunks, embeddings, ids);
         return "PDF ingested successfully";
     }
 }
