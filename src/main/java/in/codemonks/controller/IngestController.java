@@ -30,16 +30,28 @@ public class IngestController {
 
     @PostMapping("/ingest")
     public String ingest(@RequestParam MultipartFile file) throws Exception {
+        // 1. Create temporary PDF file
         File temp = File.createTempFile("upload", ".pdf");
         file.transferTo(temp);
+        temp.deleteOnExit();
 
+        // 2. Extract text
         String text = pdfService.extractText(temp);
+
+        // 3. Split text into chunks
         List<String> chunks = chunkService.chunk(text);
 
+        // 4. Generate embeddings
         List<List<Double>> embeddings = new ArrayList<>();
-        for (String c : chunks) embeddings.add(embeddingService.embed(c));
+        for (String c : chunks) {
+            List<Double> emb = embeddingService.embed(c);
+            if (emb != null && !emb.isEmpty()) embeddings.add(emb);
+        }
 
+        // 5. Store in Chroma collection
         chromaService.store(chunks, embeddings);
+
         return "PDF ingested successfully";
     }
+
 }
