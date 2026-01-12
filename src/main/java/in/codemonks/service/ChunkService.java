@@ -10,43 +10,78 @@ import java.util.Locale;
 @Service
 public class ChunkService {
 
-    private static final int CHUNK_SIZE = 500; // characters
+    // Ideal for Llama / nomic embeddings
+    private static final int MAX_CHUNK_CHARS = 600;
+    private static final int MIN_CHUNK_CHARS = 150;
 
-    public List<String> chunk(String text) {
+    /**
+     * Entry method used by your ingestion pipeline
+     */
+    public List<String> chunk(String rawText) {
+
+        // 1️⃣ Normalize PDF text (MOST IMPORTANT)
+        String text = normalize(rawText);
+
+        // 2️⃣ Split into semantic chunks
+        return sentenceAwareChunking(text);
+    }
+
+    /**
+     * Fixes PDF extraction issues:
+     * - Removes broken line breaks
+     * - Preserves paragraph breaks
+     * - Normalizes spaces
+     */
+    private String normalize(String text) {
+
+        if (text == null) return "";
+
+        // Convert Windows line endings
+        text = text.replace("\r\n", "\n");
+
+        // Remove line breaks INSIDE sentences
+        // Keeps paragraph breaks intact
+        text = text.replaceAll("(?<!\\n)\\n(?!\\n)", " ");
+
+        // Normalize multiple newlines to paragraph break
+        text = text.replaceAll("\\n{2,}", "\n\n");
+
+        // Normalize whitespace
+        text = text.replaceAll("\\s+", " ").trim();
+
+        return text;
+    }
+
+    /**
+     * Sentence-aware chunking (CRITICAL FOR GOOD RETRIEVAL)
+     */
+    private List<String> sentenceAwareChunking(String text) {
+
         List<String> chunks = new ArrayList<>();
 
-        if (text == null || text.isBlank()) {
-            return chunks;
-        }
-
-        // Normalize text
-        text = text
-                .replaceAll("-\\n", "")   // fix hyphen breaks
-                .replaceAll("\\n+", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-
-        BreakIterator iterator = BreakIterator.getSentenceInstance(Locale.US);
-        iterator.setText(text);
+        // Split by sentence endings
+        String[] sentences = text.split("(?<=[.!?])\\s+");
 
         StringBuilder current = new StringBuilder();
-        int start = iterator.first();
 
-        for (int end = iterator.next();
-             end != BreakIterator.DONE;
-             start = end, end = iterator.next()) {
+        for (String sentence : sentences) {
 
-            String sentence = text.substring(start, end);
+            // If adding this sentence exceeds max chunk size
+            if (current.length() + sentence.length() > MAX_CHUNK_CHARS) {
 
-            if (current.length() + sentence.length() > CHUNK_SIZE) {
-                chunks.add(current.toString().trim());
+                // Only add meaningful chunks
+                if (current.length() >= MIN_CHUNK_CHARS) {
+                    chunks.add(current.toString().trim());
+                }
+
                 current.setLength(0);
             }
 
             current.append(sentence).append(" ");
         }
 
-        if (!current.isEmpty()) {
+        // Add remaining text
+        if (current.length() >= MIN_CHUNK_CHARS) {
             chunks.add(current.toString().trim());
         }
 
