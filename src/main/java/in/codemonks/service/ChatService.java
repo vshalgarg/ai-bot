@@ -15,7 +15,7 @@ public class ChatService {
     @Value("${ollama.base-url}")
     private String ollamaUrl;
 
-    @Value("${ollama.embed-model}")
+    @Value("${ollama.chat-model}")
     private String chatModel;
 
     private final EmbeddingService embeddingService;
