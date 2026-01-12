@@ -31,41 +31,39 @@ public class ChatService {
 
     public String query(String question) throws Exception {
 
-        // 1️⃣ Embed the query
+        // 1️⃣ Embed query
         List<Double> queryVector = embeddingService.embed(question);
 
-        // 2️⃣ Retrieve relevant chunks
-        List<String> chunks = vectorService.query(queryVector, 5);
+        // 2️⃣ Retrieve top 3 chunks only
+        List<String> chunks = vectorService.query(queryVector, 3);
 
         if (chunks.isEmpty()) {
             return "Not found in document";
         }
 
-        System.out.println("chunks found are: {}" + chunks);
-
-        // 3️⃣ Build context
+        // 3️⃣ Build clean context
         String context = String.join("\n\n", chunks);
 
-        // 4️⃣ Strict prompt (VERY IMPORTANT)
+        // 4️⃣ STRONG extraction prompt
         String prompt = """
-        You are an assistant answering questions ONLY from the provided context.
+    You are a factual extraction assistant.
 
-        Rules:
-        - Use ONLY the context below.
-        - If the answer is not explicitly mentioned, say: "Not found in document".
-        - Answer in ONE sentence.
-        - Do not add explanations.
+    Use ONLY the context below to answer the question.
 
-        Context:
-        %s
+    Instructions:
+    - Identify and list the challenges students face.
+    - Do NOT add information not present in the context.
+    - Answer in bullet points.
+    - If the answer is not present, reply exactly: Not found in document
 
-        Question:
-        %s
+    Context:
+    %s
 
-        Answer:
-        """.formatted(context, question);
+    Question:
+    %s
 
-        System.out.println("prompt is: {}" + prompt);
+    Answer:
+    """.formatted(context, question);
 
         // 5️⃣ Call Ollama
         Map<String, Object> body = Map.of(
@@ -81,10 +79,9 @@ public class ChatService {
                 MAPPER.writeValueAsString(body)
         );
 
-        System.out.println("response is: {}" + response);
-
-        // 6️⃣ Parse answer
+        // 6️⃣ Parse response safely
         JsonNode root = MAPPER.readTree(response);
+
         return root
                 .path("choices")
                 .get(0)
@@ -93,4 +90,5 @@ public class ChatService {
                 .asText()
                 .trim();
     }
+
 }
