@@ -41,6 +41,8 @@ public class ChatService {
             return "Not found in document";
         }
 
+        System.out.println("chunks found are: {}" + chunks);
+
         // 3️⃣ Build context
         String context = String.join("\n\n", chunks);
 
@@ -63,6 +65,8 @@ public class ChatService {
         Answer:
         """.formatted(context, question);
 
+        System.out.println("prompt is: {}" + prompt);
+
         // 5️⃣ Call Ollama
         Map<String, Object> body = Map.of(
                 "model", chatModel,
@@ -76,6 +80,8 @@ public class ChatService {
                 ollamaUrl + "/v1/chat/completions",
                 MAPPER.writeValueAsString(body)
         );
+
+        System.out.println("response is: {}" + response);
 
         // 6️⃣ Parse answer
         JsonNode root = MAPPER.readTree(response);
