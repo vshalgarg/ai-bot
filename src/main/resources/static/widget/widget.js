@@ -1,24 +1,30 @@
-(function () {
 
+(function () {
+if (window.__AI_WIDGET_LOADED__) return;
+window.__AI_WIDGET_LOADED__ = true;
   const tenantId =
     document.currentScript.getAttribute("data-tenant-id") || "default";
 
-  /* UI */
-  const html = `
-    <div id="ai-widget-icon">💬</div>
+    const position =
+        script.getAttribute("data-position") || "right-bottom";
 
-    <div id="ai-widget-box">
-      <div id="ai-widget-header">
-        AI Assistant
-        <span id="ai-widget-close">✖</span>
+  /* UI */
+    const html = `
+      <div id="ai-widget-icon" class="${position}">💬</div>
+
+      <div id="ai-widget-box" class="${position}">
+        <div id="ai-widget-header">
+          AI Assistant
+          <span id="ai-widget-close">✖</span>
+        </div>
+        <div id="ai-widget-messages"></div>
+        <div id="ai-widget-input">
+          <input id="ai-input" placeholder="Type a message..." />
+          <button id="ai-send">➤</button>
+        </div>
       </div>
-      <div id="ai-widget-messages"></div>
-      <div id="ai-widget-input">
-        <input id="ai-input" placeholder="Type a message..." />
-        <button id="ai-send">➤</button>
-      </div>
-    </div>
-  `;
+    `;
+
 
   document.body.insertAdjacentHTML("beforeend", html);
 
@@ -58,7 +64,12 @@
   }
 
   send.onclick = sendMessage;
-  input.onkeydown = e => e.key === "Enter" && sendMessage();
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
 
   function add(type, text) {
     const div = document.createElement("div");
