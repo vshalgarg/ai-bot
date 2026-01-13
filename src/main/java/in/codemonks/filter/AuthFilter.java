@@ -26,7 +26,12 @@ public class AuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         final String path = request.getRequestURI();
-        return Objects.equals("/ai-bot/api/v1/login", path);
+        return path.equals("/")
+                || path.equals("/index.html")
+                || path.startsWith("/static/")
+                || path.startsWith("/assets/")
+                || path.equals("/favicon.ico")
+                || path.equals("/ai-bot/api/v1/login");
     }
 
     @Override
@@ -41,6 +46,7 @@ public class AuthFilter extends OncePerRequestFilter {
         if(StringUtils.isBlank(tenantId)){
             log.info("tenantId is blank");
             respondUnauthorized(response, "Missing tenantId");
+            return;
         }
         log.info("requestPath: {}, tenantId: {}", requestPath, tenantId);
         TenantContext.setTenantId(tenantId);

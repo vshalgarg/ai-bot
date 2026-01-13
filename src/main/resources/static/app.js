@@ -13,7 +13,7 @@ async function uploadPdf() {
   status.innerText = "⏳ Uploading & processing PDF...";
 
   try {
-    const res = await fetch("/api/ingest", {
+    const res = await fetch("/ai-bot/api/v1/ingest", {
       method: "POST",
       body: formData
     });
@@ -31,7 +31,7 @@ async function ask() {
 
   answer.innerText = "⏳ Thinking...";
 
-  const res = await fetch("/api/chat?query="+q, {
+  const res = await fetch("/ai-bot/api/v1/chat?query="+q, {
     method: "GET",
     headers: {"Content-Type":"application/json"},
   });
