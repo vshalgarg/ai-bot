@@ -37,15 +37,13 @@ public class IngestController {
         List<String> chunks = chunkService.chunk(text);
 
         List<List<Double>> embeddings = new ArrayList<>();
-        List<String> ids = new ArrayList<>();
         for (String c : chunks) {
             embeddings.add(embeddingService.embed(c));
-            ids.add(UUID.randomUUID().toString());
         }
         if (chunks.isEmpty()) {
             throw new RuntimeException("No chunks extracted from PDF");
         }
-        vectorService.store(chunks, embeddings, ids);
+        vectorService.store(chunks, embeddings);
         return "PDF ingested successfully";
     }
 }
