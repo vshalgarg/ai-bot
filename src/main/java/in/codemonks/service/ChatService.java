@@ -3,6 +3,7 @@ package in.codemonks.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import in.codemonks.util.HttpUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Slf4j
 public class ChatService {
 
     @Value("${ollama.base-url}")
@@ -64,7 +66,7 @@ public class ChatService {
 
     Answer:
     """.formatted(context, question);
-
+    log.info("prompt created: {}", prompt);
         // 5️⃣ Call Ollama
         Map<String, Object> body = Map.of(
                 "model", chatModel,

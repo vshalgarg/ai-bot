@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/ai-bot/api")
 public class IngestController {
 
     private final PdfService pdfService;
@@ -26,7 +26,7 @@ public class IngestController {
         this.vectorService = vectorService;
     }
 
-    @PostMapping("/ingest")
+    @PostMapping("/v1/ingest")
     public String ingest(@RequestParam MultipartFile file) throws Exception {
         vectorService.createCollection(); // ensure collection exists
 

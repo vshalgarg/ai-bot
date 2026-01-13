@@ -2,10 +2,8 @@ package in.codemonks.service;
 
 import org.springframework.stereotype.Service;
 
-import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 public class ChunkService {
@@ -19,10 +17,7 @@ public class ChunkService {
      */
     public List<String> chunk(String rawText) {
 
-        // 1️⃣ Normalize PDF text (MOST IMPORTANT)
         String text = normalize(rawText);
-
-        // 2️⃣ Split into semantic chunks
         return sentenceAwareChunking(text);
     }
 

@@ -2,6 +2,9 @@ package in.codemonks.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import in.codemonks.properties.TenantCollectionProperties;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.http.*;
@@ -12,18 +15,24 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Slf4j
 public class VectorService {
 
-    private static final String QDRANT_URL = "http://qdrant:6333";
+    @Value("${vector-db.base-url}")
+    private String vectorDbUrl;
+
+    @Value("${vector-db.vector-size}")
+    private int vectorSize;
+
+    private TenantCollectionProperties tenantCollectionProperties;
+
     private static final HttpClient client = HttpClient.newHttpClient();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static final String COLLECTION = "pdf_collection";
-
     // create collection if not exists
     public void createCollection() throws Exception {
-        String url = QDRANT_URL + "/collections/" + COLLECTION;
-        String body = "{\"vectors\":{ \"size\": 768, \"distance\": \"Cosine\"} }"; // adjust vector_size to your embedding size
+        String url = vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant();
+        String body = "{\"vectors\":{ \"size\": " + vectorSize + ", \"distance\": \"Cosine\"} }"; // adjust vector_size to your embedding size
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .PUT(HttpRequest.BodyPublishers.ofString(body))
@@ -35,7 +44,7 @@ public class VectorService {
     }
 
     public void store(List<String> documents, List<List<Double>> embeddings, List<String> ids) throws Exception {
-        String url = QDRANT_URL + "/collections/" + COLLECTION + "/points?wait=true";
+        String url = vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points?wait=true";
 
         List<Map<String, Object>> points = new ArrayList<>();
         for (int i = 0; i < documents.size(); i++) {
@@ -47,8 +56,8 @@ public class VectorService {
             if (doc == null || vector == null || id == null) {
                 continue; // skip nulls
             }
-            System.out.println("vector size is:  " + vector.size());
-            System.out.println("id is: " + id + ", doc is: " + doc);
+            log.debug("vector size is:  " + vector.size());
+            log.debug("id is: " + id + ", doc is: " + doc);
             Map<String, Object> payload = new HashMap<>();
             payload.put("text", doc);
 
@@ -72,7 +81,7 @@ public class VectorService {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("Qdrant store response: " + response.body());
+        log.info("vector db store response: " + response.body());
     }
 
 
@@ -82,20 +91,12 @@ public class VectorService {
             throw new IllegalArgumentException("queryVector is null or empty");
         }
 
-        String url = QDRANT_URL + "/collections/" + COLLECTION + "/points/search";
+        String url = vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points/search";
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("vector", queryVector);
         payload.put("top", nResults);
         payload.put("with_payload", true);
-
-        // Optional: filter
-        Map<String, Object> filter = new HashMap<>();
-        // populate filter if needed, skip if null
-        if (!filter.isEmpty()) {
-            payload.put("filter", filter);
-        }
-
         String body = MAPPER.writeValueAsString(payload);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -105,7 +106,6 @@ public class VectorService {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("Qdrant query response: " + response.body());
         // parse response
         JsonNode root = MAPPER.readTree(response.body());
         List<String> results = new ArrayList<>();
