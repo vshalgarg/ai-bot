@@ -28,11 +28,15 @@ public class EmbeddingService {
                     "input", List.of(text)
             );
 
-            String res = HttpUtils.postJson(ollamaUrl + "/v1/embeddings", MAPPER.writeValueAsString(body));
-            JsonNode node = MAPPER.readTree(res);
+            String res = HttpUtils.postJson(
+                    ollamaUrl + "/v1/embeddings",
+                    MAPPER.writeValueAsString(body)
+            );
+
+            JsonNode root = MAPPER.readTree(res);
             return MAPPER.convertValue(
-                    node.get("data").get(0).get("embedding"),
-                    MAPPER.getTypeFactory().constructCollectionType(List.class, Double.class)
+                    root.get("data").get(0).get("embedding"),
+                    new TypeReference<List<Double>>() {}
             );
         } catch (Exception e) {
             throw new RuntimeException("Ollama embedding failed: " + e.getMessage(), e);

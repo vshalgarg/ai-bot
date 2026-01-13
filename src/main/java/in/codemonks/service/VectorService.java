@@ -10,10 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.net.http.*;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -45,37 +42,19 @@ public class VectorService {
         // Qdrant returns 200 if exists, 201 if created
     }
 
-    public void store(List<String> documents, List<List<Double>> embeddings, List<String> ids) throws Exception {
+    public void store(List<String> texts, List<List<Double>> vectors) throws Exception {
         String url = vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points?wait=true";
 
         List<Map<String, Object>> points = new ArrayList<>();
-        for (int i = 0; i < documents.size(); i++) {
-            String doc = documents.get(i);
-            List<Double> vector = embeddings.get(i);
 
-            String id = ids.get(i);
-
-            if (doc == null || vector == null || id == null) {
-                continue; // skip nulls
-            }
-            log.debug("vector size is:  " + vector.size());
-            log.debug("id is: " + id + ", doc is: " + doc);
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("text", doc);
-
-            Map<String, Object> point = new HashMap<>();
-            point.put("id", id);
-            point.put("vector", vector);
-            point.put("payload", payload);
-
-            points.add(point);
+        for (int i = 0; i < texts.size(); i++) {
+            points.add(Map.of(
+                    "id", UUID.randomUUID().toString(),
+                    "vector", vectors.get(i),
+                    "payload", Map.of("text", texts.get(i))
+            ));
         }
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("points", points);
-
-        String body = MAPPER.writeValueAsString(payload);
-
+        String body = MAPPER.writeValueAsString(Map.of("points", points));
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .PUT(HttpRequest.BodyPublishers.ofString(body))
@@ -94,16 +73,17 @@ public class VectorService {
         }
 
         String url = vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points/search";
+        Map<String, Object> body = Map.of(
+                "vector", queryVector,
+                "limit", nResults,
+                "with_payload", true
+        );
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("vector", queryVector);
-        payload.put("top", nResults);
-        payload.put("with_payload", true);
-        String body = MAPPER.writeValueAsString(payload);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        MAPPER.writeValueAsString(body)))
                 .header("Content-Type", "application/json")
                 .build();
 

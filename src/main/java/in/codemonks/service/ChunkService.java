@@ -8,79 +8,35 @@ import java.util.List;
 @Service
 public class ChunkService {
 
-    // Ideal for Llama / nomic embeddings
-    private static final int MAX_CHUNK_CHARS = 600;
-    private static final int MIN_CHUNK_CHARS = 150;
+    private static final int MAX_CHARS = 800;
+    private static final int OVERLAP = 150;
 
-    /**
-     * Entry method used by your ingestion pipeline
-     */
-    public List<String> chunk(String rawText) {
-
-        String text = normalize(rawText);
-        return sentenceAwareChunking(text);
-    }
-
-    /**
-     * Fixes PDF extraction issues:
-     * - Removes broken line breaks
-     * - Preserves paragraph breaks
-     * - Normalizes spaces
-     */
-    private String normalize(String text) {
-
-        if (text == null) return "";
-
-        // Convert Windows line endings
-        text = text.replace("\r\n", "\n");
-
-        // Remove line breaks INSIDE sentences
-        // Keeps paragraph breaks intact
-        text = text.replaceAll("(?<!\\n)\\n(?!\\n)", " ");
-
-        // Normalize multiple newlines to paragraph break
-        text = text.replaceAll("\\n{2,}", "\n\n");
-
-        // Normalize whitespace
-        text = text.replaceAll("\\s+", " ").trim();
-
-        return text;
-    }
-
-    /**
-     * Sentence-aware chunking (CRITICAL FOR GOOD RETRIEVAL)
-     */
-    private List<String> sentenceAwareChunking(String text) {
-
+    public List<String> chunk(String text) {
         List<String> chunks = new ArrayList<>();
 
-        // Split by sentence endings
-        String[] sentences = text.split("(?<=[.!?])\\s+");
+        text = text.replaceAll("\\r", "");
+        String[] paragraphs = text.split("\\n\\n+");
 
         StringBuilder current = new StringBuilder();
 
-        for (String sentence : sentences) {
+        for (String p : paragraphs) {
+            if (current.length() + p.length() > MAX_CHARS) {
+                chunks.add(current.toString().trim());
 
-            // If adding this sentence exceeds max chunk size
-            if (current.length() + sentence.length() > MAX_CHUNK_CHARS) {
-
-                // Only add meaningful chunks
-                if (current.length() >= MIN_CHUNK_CHARS) {
-                    chunks.add(current.toString().trim());
-                }
-
+                // overlap
+                String overlapText = current.substring(
+                        Math.max(0, current.length() - OVERLAP)
+                );
                 current.setLength(0);
+                current.append(overlapText).append("\n\n");
             }
-
-            current.append(sentence).append(" ");
+            current.append(p).append("\n\n");
         }
 
-        // Add remaining text
-        if (current.length() >= MIN_CHUNK_CHARS) {
+        if (!current.isEmpty()) {
             chunks.add(current.toString().trim());
         }
 
         return chunks;
     }
 }
-
