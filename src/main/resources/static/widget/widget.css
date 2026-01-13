@@ -1,3 +1,35 @@
+/* ===== Base Widget Styles ===== */
+
+#ai-widget-icon {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  background: #25d366;
+  color: white;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 999999;
+}
+
+#ai-widget-box {
+  position: fixed;
+  width: 340px;
+  height: 460px;
+  background: white;
+  border-radius: 12px;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  z-index: 999999;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 /* ===== Position Presets ===== */
 
 /* Right Bottom (default) */
@@ -15,13 +47,11 @@
 #ai-widget-icon.right-center {
   top: 50%;
   right: 24px;
-  transform: translateY(-50%);
 }
 
 #ai-widget-box.right-center {
-  top: 50%;
+  top: calc(50% - 230px);
   right: 90px;
-  transform: translateY(-50%);
 }
 
 /* Right Top */
@@ -34,3 +64,27 @@
   top: 90px;
   right: 24px;
 }
+
+/* ===== Header ===== */
+
+#ai-widget-header {
+  background: #25d366;
+  color: white;
+  padding: 12px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#ai-widget-close {
+  cursor: pointer;
+}
+
+/* ===== Messages ===== */
+
+#ai-widget-messages {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  background: #f0f0f0
