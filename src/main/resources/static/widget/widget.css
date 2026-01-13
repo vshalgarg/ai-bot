@@ -1,14 +1,5 @@
 /* ===== Position Presets ===== */
 
-#ai-widget-input input {
-  pointer-events: auto;
-  z-index: 100000;
-}
-
-#ai-widget-box,
-#ai-widget-icon {
-  z-index: 999999;
-}
 /* Right Bottom (default) */
 #ai-widget-icon.right-bottom {
   bottom: 24px;
@@ -28,8 +19,9 @@
 }
 
 #ai-widget-box.right-center {
-  top: calc(50% - 230px); /* half of box height */
+  top: 50%;
   right: 90px;
+  transform: translateY(-50%);
 }
 
 /* Right Top */
