@@ -28,6 +28,8 @@ public class AuthFilter extends OncePerRequestFilter {
         final String path = request.getRequestURI();
         return path.equals("/")
                 || path.equals("/index.html")
+                || path.equals("/app.js")
+                || path.equals("/styles.css")
                 || path.startsWith("/static/")
                 || path.startsWith("/assets/")
                 || path.equals("/favicon.ico")
