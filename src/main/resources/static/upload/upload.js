@@ -3,6 +3,11 @@ async function uploadPdf() {
   const status = document.getElementById("uploadStatus");
   const tenantId = document.getElementById("tenantId").value;
 
+  if (!tenantId) {
+    status.innerText = "❌ Tenant ID is required";
+    return;
+  }
+
   if (!fileInput.files.length) {
     status.innerText = "❌ Please select a PDF file";
     return;
@@ -17,9 +22,7 @@ async function uploadPdf() {
     const res = await fetch("/ai-bot/api/v1/ingest", {
       method: "POST",
       body: formData,
-      headers: {
-        "tenantId": tenantId
-      }
+      headers: { tenantId }
     });
 
     const text = await res.text();
@@ -27,19 +30,4 @@ async function uploadPdf() {
   } catch (e) {
     status.innerText = "❌ Upload failed";
   }
-}
-
-async function ask() {
-  const q = document.getElementById("question").value;
-  const answer = document.getElementById("answer");
-  const tenantId = document.getElementById("tenantId").value;
-
-  answer.innerText = "⏳ Thinking...";
-
-  const res = await fetch("/ai-bot/api/v1/chat?query="+q, {
-    method: "GET",
-    headers: {"Content-Type":"application/json", "tenantId": tenantId},
-  });
-
-  answer.innerText = await res.text();
 }

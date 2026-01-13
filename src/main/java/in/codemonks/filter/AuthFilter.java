@@ -26,14 +26,21 @@ public class AuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         final String path = request.getRequestURI();
-        return path.equals("/")
-                || path.equals("/index.html")
-                || path.equals("/app.js")
-                || path.equals("/styles.css")
+        return path.startsWith("/upload/")
+                || path.startsWith("/widget/")
                 || path.startsWith("/static/")
                 || path.startsWith("/assets/")
+                || path.endsWith(".js")
+                || path.endsWith(".css")
+                || path.endsWith(".html")
+                || path.equals("/")
                 || path.equals("/favicon.ico")
-                || path.equals("/ai-bot/api/v1/login");
+
+                // auth / public APIs
+                || path.equals("/ai-bot/api/v1/login")
+
+                // allow OPTIONS for CORS
+                || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 
     @Override
@@ -44,14 +51,16 @@ public class AuthFilter extends OncePerRequestFilter {
             return;
         }
         final String requestPath  = request.getRequestURI();
-        String tenantId = request.getHeader("tenantId");
-        if(StringUtils.isBlank(tenantId)){
-            log.info("tenantId is blank");
-            respondUnauthorized(response, "Missing tenantId");
-            return;
+        if (requestPath.startsWith("/ai-bot/api/")) {
+            String tenantId = request.getHeader("tenantId");
+            if (StringUtils.isBlank(tenantId)) {
+                log.info("tenantId is blank");
+                respondUnauthorized(response, "Missing tenantId");
+                return;
+            }
+            log.info("requestPath: {}, tenantId: {}", requestPath, tenantId);
+            TenantContext.setTenantId(tenantId);
         }
-        log.info("requestPath: {}, tenantId: {}", requestPath, tenantId);
-        TenantContext.setTenantId(tenantId);
 //        if(requestPath.contains("/v1/ingest")) {
 //            //validate token from auth
 //            String authHeader = request.getHeader("Authorization");
@@ -69,12 +78,15 @@ public class AuthFilter extends OncePerRequestFilter {
     }
 
     private void respondUnauthorized(HttpServletResponse response, String message) throws IOException {
-        log.warn("Responding with unauthorized: {}", message);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.setHeader("Access-Control-Allow-Origin", "*");
-        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
-        response.getWriter().write(String.format("{\"error\": \"%s\"}", message));
+        response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        response.setHeader(
+                "Access-Control-Allow-Headers",
+                "Authorization, Content-Type, tenantId"
+        );
+        response.getWriter().write("{\"error\":\"" + message + "\"}");
     }
+
 }
