@@ -1,6 +1,7 @@
 async function uploadPdf() {
   const fileInput = document.getElementById("pdfFile");
   const status = document.getElementById("uploadStatus");
+  const tenantId = document.getElementById("tenantId");
 
   if (!fileInput.files.length) {
     status.innerText = "❌ Please select a PDF file";
@@ -15,7 +16,10 @@ async function uploadPdf() {
   try {
     const res = await fetch("/ai-bot/api/v1/ingest", {
       method: "POST",
-      body: formData
+      body: formData,
+      headers: {
+        "tenantId": tenantId
+      }
     });
 
     const text = await res.text();
@@ -28,12 +32,13 @@ async function uploadPdf() {
 async function ask() {
   const q = document.getElementById("question").value;
   const answer = document.getElementById("answer");
+  const tenantId = document.getElementById("tenantId");
 
   answer.innerText = "⏳ Thinking...";
 
   const res = await fetch("/ai-bot/api/v1/chat?query="+q, {
     method: "GET",
-    headers: {"Content-Type":"application/json"},
+    headers: {"Content-Type":"application/json", "tenantId": tenantId},
   });
 
   answer.innerText = await res.text();
