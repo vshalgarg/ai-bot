@@ -5,8 +5,8 @@ window.__AI_WIDGET_LOADED__ = true;
   const tenantId =
     document.currentScript.getAttribute("data-tenant-id") || "default";
 
-    const position =
-        script.getAttribute("data-position") || "right-bottom";
+  const position =
+    document.currentScript.getAttribute("data-position") || "right-bottom";
 
   /* UI */
     const html = `
