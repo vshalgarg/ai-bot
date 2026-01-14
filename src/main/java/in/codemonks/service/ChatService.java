@@ -2,89 +2,72 @@ package in.codemonks.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import in.codemonks.model.QueryIntent;
 import in.codemonks.util.HttpUtils;
+import in.codemonks.util.OllamaUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class ChatService {
 
-    private final EmbeddingService embeddingService;
-    private final VectorService vectorService;
-    private final QueryExpansionService expansionService;
-
-    @Value("${ollama.base-url}")
-    private String ollamaUrl;
+    @Autowired
+    IntentService intentService;
+    @Autowired QueryExpansionService expansionService;
+    @Autowired EmbeddingService embeddingService;
+    @Autowired VectorService vectorService;
+    @Autowired RerankService rerankService;
 
     @Value("${ollama.chat-model}")
-    private String chatModel;
+    private String model;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
-    public ChatService(
-            EmbeddingService embeddingService,
-            VectorService vectorService,
-            QueryExpansionService expansionService
-    ) {
-        this.embeddingService = embeddingService;
-        this.vectorService = vectorService;
-        this.expansionService = expansionService;
-    }
+    @Value("${ollama.base-url}")
+    private String baseUrl;
 
     public String ask(String question) throws Exception {
 
-        List<String> queries = expansionService.expand(question);
-        queries.add(0, question);
+        QueryIntent intent = intentService.analyze(question);
 
-        Set<String> contextChunks = new LinkedHashSet<>();
+        List<String> queries = expansionService.expand(intent);
 
+        List<String> candidates = new ArrayList<>();
         for (String q : queries) {
-            List<Double> vector = embeddingService.embed(q);
-            contextChunks.addAll(vectorService.query(vector, 3));
+            candidates.addAll(
+                    vectorService.query(embeddingService.embed(q), 10)
+            );
         }
 
-        if (contextChunks.isEmpty()) {
+        if (candidates.isEmpty()) {
             return "Not found in document";
         }
 
-        String context = String.join("\n\n", contextChunks);
+        List<String> contextChunks =
+                rerankService.rerank(question, candidates);
+
+        return answer(question, contextChunks);
+    }
+
+    private String answer(String question, List<String> chunks) throws Exception {
+
+        String context = String.join("\n\n", chunks);
 
         String prompt = """
-        Answer using ONLY the context.
-        You may rephrase but NOT invent facts.
-        If answer is missing, say "Not found in document".
-        Answer in ONE sentence.
+        Answer ONLY using the context below.
+        If the answer is not present, say exactly:
+        Not found in document.
 
         Context:
         %s
 
         Question:
         %s
-
-        Answer:
         """.formatted(context, question);
 
-        Map<String, Object> body = Map.of(
-                "model", chatModel,
-                "messages", List.of(
-                        Map.of("role", "user", "content", prompt)
-                ),
-                "temperature", 0
-        );
-
-        String res = HttpUtils.postJson(
-                ollamaUrl + "/v1/chat/completions",
-                MAPPER.writeValueAsString(body)
-        );
-
-        return MAPPER.readTree(res)
-                .path("choices").get(0)
-                .path("message").path("content").asText().trim();
+        return OllamaUtils.chat(prompt,
+                model, baseUrl).trim();
     }
 }

@@ -2,6 +2,7 @@ package in.codemonks.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import in.codemonks.model.VectorResult;
 import in.codemonks.properties.TenantCollectionProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,13 +91,33 @@ public class VectorService {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         // parse response
         JsonNode root = MAPPER.readTree(response.body());
-        List<String> results = new ArrayList<>();
-        if (root.has("result")) {
-            for (JsonNode point : root.get("result")) {
-                results.add(point.get("payload").get("text").asText());
+        JsonNode result = root.path("result");
+
+        List<VectorResult> hits = new ArrayList<>();
+
+        for (JsonNode node : result) {
+            String text = node
+                    .path("payload")
+                    .path("text")
+                    .asText("");
+
+            double score = node.path("score").asDouble();
+
+            if (!text.isBlank()) {
+                hits.add(new VectorResult(
+                        node.path("id").asText(),
+                        score,
+                        text
+                ));
             }
         }
-        return results;
+
+        // Sort again defensively
+        hits.sort(Comparator.comparingDouble(VectorResult::score).reversed());
+
+        return hits.stream()
+                .map(VectorResult::text)
+                .toList();
     }
 
 }

@@ -8,35 +8,34 @@ import java.util.List;
 @Service
 public class ChunkService {
 
-    private static final int MAX_CHARS = 800;
-    private static final int OVERLAP = 150;
+    private static final int MAX_CHARS = 900;
+    private static final int OVERLAP = 200;
 
     public List<String> chunk(String text) {
+
+        text = normalize(text);
         List<String> chunks = new ArrayList<>();
 
-        text = text.replaceAll("\\r", "");
-        String[] paragraphs = text.split("\\n\\n+");
+        int start = 0;
+        while (start < text.length()) {
+            int end = Math.min(start + MAX_CHARS, text.length());
 
-        StringBuilder current = new StringBuilder();
-
-        for (String p : paragraphs) {
-            if (current.length() + p.length() > MAX_CHARS) {
-                chunks.add(current.toString().trim());
-
-                // overlap
-                String overlapText = current.substring(
-                        Math.max(0, current.length() - OVERLAP)
-                );
-                current.setLength(0);
-                current.append(overlapText).append("\n\n");
+            int lastPara = text.lastIndexOf("\n\n", end);
+            if (lastPara > start + 300) {
+                end = lastPara;
             }
-            current.append(p).append("\n\n");
-        }
 
-        if (!current.isEmpty()) {
-            chunks.add(current.toString().trim());
+            chunks.add(text.substring(start, end).trim());
+            start = end - OVERLAP;
         }
 
         return chunks;
+    }
+
+    private String normalize(String text) {
+        return text
+                .replaceAll("\\s+", " ")
+                .replaceAll("\\n{2,}", "\n\n")
+                .trim();
     }
 }
