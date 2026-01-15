@@ -43,82 +43,72 @@ public class VectorService {
         // Qdrant returns 200 if exists, 201 if created
     }
 
-    public void store(List<String> texts, List<List<Double>> vectors) throws Exception {
-        String url = vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points?wait=true";
+    public void store(List<String> ids, List<String> texts, List<List<Double>> vectors) {
+        try {
+            List<Map<String, Object>> points = new ArrayList<>();
 
-        List<Map<String, Object>> points = new ArrayList<>();
+            for (int i = 0; i < texts.size(); i++) {
+                points.add(Map.of(
+                        "id", ids.get(i),
+                        "vector", vectors.get(i),
+                        "payload", Map.of(
+                                "text", texts.get(i)
+                        )
+                ));
+            }
 
-        for (int i = 0; i < texts.size(); i++) {
-            points.add(Map.of(
-                    "id", UUID.randomUUID().toString(),
-                    "vector", vectors.get(i),
-                    "payload", Map.of("text", texts.get(i))
-            ));
+            Map<String, Object> body = Map.of("points", points);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points?wait=true"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
+                    .build();
+
+            client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Qdrant store failed", e);
         }
-        String body = MAPPER.writeValueAsString(Map.of("points", points));
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .PUT(HttpRequest.BodyPublishers.ofString(body))
-                .header("Content-Type", "application/json")
-                .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        log.info("vector db store response: " + response.body());
     }
 
 
     // query embeddings
-    public List<String> query(List<Double> queryVector, int nResults) throws Exception {
-        if (queryVector == null || queryVector.isEmpty()) {
-            throw new IllegalArgumentException("queryVector is null or empty");
-        }
+    public List<SearchResult> search(List<Double> queryVector, int limit) {
+        try {
+            Map<String, Object> body = Map.of(
+                    "vector", queryVector,
+                    "limit", limit,
+                    "with_payload", true
+            );
 
-        String url = vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points/search";
-        Map<String, Object> body = Map.of(
-                "vector", queryVector,
-                "limit", nResults,
-                "with_payload", true
-        );
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(vectorDbUrl + "/collections/" + tenantCollectionProperties.getCollectionNameForCurrentTenant() + "/points/search"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
+                    .build();
 
+            HttpResponse<String> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofString());
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .POST(HttpRequest.BodyPublishers.ofString(
-                        MAPPER.writeValueAsString(body)))
-                .header("Content-Type", "application/json")
-                .build();
+            JsonNode root = MAPPER.readTree(response.body());
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        // parse response
-        JsonNode root = MAPPER.readTree(response.body());
-        JsonNode result = root.path("result");
-
-        List<VectorResult> hits = new ArrayList<>();
-
-        for (JsonNode node : result) {
-            String text = node
-                    .path("payload")
-                    .path("text")
-                    .asText("");
-
-            double score = node.path("score").asDouble();
-
-            if (!text.isBlank()) {
-                hits.add(new VectorResult(
-                        node.path("id").asText(),
-                        score,
-                        text
+            List<SearchResult> results = new ArrayList<>();
+            for (JsonNode r : root.get("result")) {
+                results.add(new SearchResult(
+                        r.get("score").asDouble(),
+                        r.get("payload").get("text").asText()
                 ));
             }
+
+            return results;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Qdrant search failed", e);
         }
-
-        // Sort again defensively
-        hits.sort(Comparator.comparingDouble(VectorResult::score).reversed());
-
-        return hits.stream()
-                .map(VectorResult::text)
-                .toList();
     }
+
+    public record SearchResult(double score, String text) {}
 
 }
 

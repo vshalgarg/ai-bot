@@ -15,6 +15,6 @@ public class ChatController {
 
     @GetMapping("/v1/chat")
     public String chat(@RequestParam String query) throws Exception {
-        return chatService.ask(query);
+        return chatService.ask(query).answer();
     }
 }
